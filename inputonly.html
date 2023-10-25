@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>テキストインプッター v1.0</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        /* ダークモードの場合のスタイル */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: black;
+                color: white;
+            }
+
+            textarea {
+                background-color: #333;
+                color: white;
+            }
+        }
+
+        #message-container {
+            text-align: center;
+            max-width: 80%; /* 最大幅を設定 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .error {
+            color: red;
+        }
+
+        /* 入力フィールドの文字サイズと文字間隔を調整 */
+        textarea {
+            font-size: 20px;
+            letter-spacing: 2.5px; /* 文字間隔を調整 */
+            width: 150%; /* 幅を150%に設定 */
+        }
+    </style>
+</head>
+<body>
+    <div id="message-container">
+        <h1>テキストインプッター</h1>
+        <textarea id="inputText" rows="4" placeholder="メッセージを入力してください"></textarea>
+        <br>
+        <p class="error" id="errorMessage"></p>
+    </div>
+
+    <script>
+        // Discord WebhookのURLを指定
+        const discordWebhookURL = 'WebhookURL';
+
+        function sendMessage() {
+            const message = document.getElementById('inputText').value;
+            document.getElementById('inputText').value = '';
+
+            if (message) {
+                // メッセージをDiscordへ送信
+                sendToDiscord(message);
+            } else {
+                showError('メッセージを入力してください。');
+            }
+        }
+
+        function sendToDiscord(message) {
+            // ここにWebhook送信のJavaScriptコードを記述
+            // 例: fetchメソッドを使用してDiscord Webhookにメッセージを送信
+            fetch(discordWebhookURL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ content: message }),
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log('メッセージが送信されました。');
+                    clearError();
+                } else {
+                    showError('メッセージの送信に失敗しました。');
+                }
+            })
+            .catch(error => {
+                showError('エラーが発生しました: ' + error);
+            });
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function clearError() {
+            document.getElementById('errorMessage').textContent = '';
+        }
+
+        // Enterキーで送信
+        document.getElementById('inputText').addEventListener('keydown', function (e) {
+            if(e.key === "Backspace" || e.keyCode === 8) {
+                //テキストボックスに入力した文字を消せません
+                e.preventDefault();
+                return false;
+            }
+            if (e.isComposing || e.key === 'Process' || e.keyCode === 229) {
+                // IME入力中
+            } else {
+                // IME入力中でない
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
