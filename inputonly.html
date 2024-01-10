@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>テキストインプッター v1.0</title>
+    <title>テキストインプッター v2.1</title>
     <style>
         body {
             display: flex;
@@ -25,15 +25,33 @@
             }
         }
 
+        @keyframes fade-in {
+            from {
+                opacity: 0.4;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         #message-container {
             text-align: center;
             max-width: 80%; /* 最大幅を設定 */
             display: flex;
             flex-direction: column;
             align-items: center;
+            position: relative; /* 相対配置 */
         }
 
-        .error {
+        #errorMessage{
+            color: black;
+            position: absolute;
+            bottom: -20%; 
+        }
+
+        #errorMessage.error {
             color: red;
         }
 
@@ -42,28 +60,180 @@
             font-size: 20px;
             letter-spacing: 2.5px; /* 文字間隔を調整 */
             width: 150%; /* 幅を150%に設定 */
+            margin-bottom: 10px; /* マージンを追加 */	
+        }	
+
+        /* 送信履歴のスタイル */	
+        #history {	
+            display: flex;	
+            flex-direction: column-reverse; /* 最新の履歴が下に来るように */	
+            max-height: 300px; /* 最大の高さを設定 */	
+            overflow-y: auto; /* 高さを超えた場合はスクロールバーを表示 */	
+            scrollbar-width: thin;
+            width: 150%; /* 入力フィールドと同じ幅に設定 */
+            position: absolute; /* 絶対配置 */
+            bottom: 75%; /* 入力フィールドの上に表示 */
+            z-index: 1; /* 他の要素より手前に表示 */
+            margin-bottom: 10px; /* マージンを追加 */
         }
+
+        #history::-webkit-scrollbar {
+            width: 0; /* WebKit（ChromeやSafari）用のスクロールバーを非表示にします */
+        }
+
+        .history-item {
+            background-color: #333333e6; /* 透明度を設定 */
+            padding: 5px;	
+            margin-bottom: 6.5px;	
+            border-radius: 5px;
+            white-space: pre-line; 
+            text-align: left;
+            padding-left: 15px; 
+        }
+
+        .menubar{
+            display: flex;
+        }
+
+        button {
+            background-color: rgb(181, 181, 181);
+            color: transparent; 
+            text-shadow: 0 0 0 black;
+            padding: 5px 10px 5px 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin: 0px 5px 0px 5px;
+            font-size: 120%;
+        }
+
+        button:hover {
+            transform: translateY(-3px); /* ホバー時にわずかに浮くアニメーション */
+        }
+
+        #message-container.off #toggleLog, #togglePush.off, #toggleBack.off{
+            background-color: #333;
+            color: transparent; 
+            text-shadow: 0 0 0 white;
+        }
+
+        #message-container.off #history{
+            display: none;
+        }
+        #message-container.on h1{
+            color: black;
+        }
+
     </style>
 </head>
 <body>
-    <div id="message-container">
+    <div id="message-container" class="off">
         <h1>テキストインプッター</h1>
+        <div id="history"></div>
         <textarea id="inputText" rows="4" placeholder="メッセージを入力してください"></textarea>
+        <div class="menubar">
+            <button title="Discord送信切替" id="togglePush" onclick="togglePush()" class="on">💬</button>
+            <button title="ログ表示切替" id="toggleLog" onclick="toggleLog()">🗒️</button>
+            <button title="ログ削除" id="dust" onclick="showConfirmationDialog()">🗑️</button>
+            <button title="ログダウンロード" id="download" onclick="downloadHistory()">📩</button>
+            <button title="一区切り送信" id="diamond" onclick="sendDiamond()">◆</button>
+            <button title="BackSpace有効化" id="toggleBack" onclick="toggleBack()" class="on">⌫</button>
+        </div>
         <br>
-        <p class="error" id="errorMessage"></p>
+        <p id="errorMessage">BLANK</p>
     </div>
 
     <script>
         // Discord WebhookのURLを指定
         const discordWebhookURL = 'WebhookURL';
 
+        // 送信履歴を格納する配列
+        const history = [];
+
+        let isPushButtonOn = localStorage.getItem('isPushButtonOn') === 'true';
+        function togglePush() {
+            const togglePush = document.getElementById('togglePush');
+            isPushButtonOn = !isPushButtonOn;
+            togglePush.classList.toggle('on', isPushButtonOn);
+            togglePush.classList.toggle('off', !isPushButtonOn);
+            localStorage.setItem('isPushButtonOn', isPushButtonOn);
+        }
+
+        let isLogButtonOn = localStorage.getItem('isLogButtonOn') === 'true';
+        function toggleLog() {
+            const messageContainer = document.getElementById('message-container');
+            isLogButtonOn = !isLogButtonOn;
+            messageContainer.classList.toggle('on', isLogButtonOn);
+            messageContainer.classList.toggle('off', !isLogButtonOn);
+            localStorage.setItem('isLogButtonOn', isLogButtonOn);
+        }
+
+        let isBackButtonOn = localStorage.getItem('isBackButtonOn') === 'true';
+        function toggleBack() {
+            const toggleBack = document.getElementById('toggleBack');
+            isBackButtonOn = !isBackButtonOn;
+            toggleBack.classList.toggle('on', isBackButtonOn);
+            toggleBack.classList.toggle('off', !isBackButtonOn);
+            localStorage.setItem('isBackButtonOn', isBackButtonOn);
+        }
+
+        // 送信履歴をLocalStorageに保存
+        function saveHistoryToCache() {
+            localStorage.setItem('history', JSON.stringify(history));
+        }
+
+        // ページ読み込み時に履歴をLocalStorageから読み込み
+        function loadHistoryFromCache() {
+            const cachedHistory = localStorage.getItem('history');
+            if (cachedHistory) {
+                history.length = 0; // 履歴をクリア
+                history.push(...JSON.parse(cachedHistory)); // キャッシュから履歴を読み込み
+                updateHistory(); // 履歴を表示
+            }
+        }
+
+        function showConfirmationDialog() {
+            const confirmation = confirm("本当に履歴を削除しますか？");
+
+            if (confirmation) {
+                resetHistory();
+            }
+        }
+
+        function resetHistory(){
+            history.length = 0;
+            updateHistory(); // 履歴を表示
+        }
+
+        // ページ読み込み時にボタンの状態を反映
+        window.onload = function () {
+            loadHistoryFromCache();
+
+            const togglePush = document.getElementById('togglePush');
+            togglePush.classList.toggle('on', isPushButtonOn);
+            togglePush.classList.toggle('off', !isPushButtonOn);
+
+            const messageContainer = document.getElementById('message-container');
+            messageContainer.classList.toggle('on', isLogButtonOn);
+            messageContainer.classList.toggle('off', !isLogButtonOn);
+
+            const toggleBack = document.getElementById('toggleBack');
+            toggleBack.classList.toggle('on', isBackButtonOn);
+            toggleBack.classList.toggle('off', !isBackButtonOn);
+        };
+
         function sendMessage() {
             const message = document.getElementById('inputText').value;
             document.getElementById('inputText').value = '';
+            clearError();
 
             if (message) {
                 // メッセージをDiscordへ送信
-                sendToDiscord(message);
+                if(isPushButtonOn){
+                    sendToDiscord(message);
+                }
+                // 送信履歴に追加
+                addToHistory(message);
             } else {
                 showError('メッセージを入力してください。');
             }
@@ -82,7 +252,6 @@
             .then(response => {
                 if (response.ok) {
                     console.log('メッセージが送信されました。');
-                    clearError();
                 } else {
                     showError('メッセージの送信に失敗しました。');
                 }
@@ -94,18 +263,45 @@
 
         function showError(message) {
             document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorMessage').classList.add('error');
         }
 
         function clearError() {
-            document.getElementById('errorMessage').textContent = '';
+            document.getElementById('errorMessage').classList.remove('error');
+        }
+
+        // 送信履歴にメッセージを追加
+        function addToHistory(message) {
+            history.unshift(message); // 配列の先頭に追加
+            updateHistory();
+        }
+
+        // 送信履歴を更新して表示
+        function updateHistory() {
+            const historyContainer = document.getElementById('history');
+            historyContainer.innerHTML = ''; // 履歴をクリア
+
+            // 履歴の要素を作成して表示
+            history.forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.classList.add('history-item');
+                historyItem.textContent = item;
+                historyContainer.appendChild(historyItem);
+                historyItem.style.animation = 'fade-in 0.2s ease-out ' + (index * 0.05) + 's forwards';
+            });
+
+            // 送信履歴をキャッシュに保存
+            saveHistoryToCache();
         }
 
         // Enterキーで送信
         document.getElementById('inputText').addEventListener('keydown', function (e) {
-            if(e.key === "Backspace" || e.keyCode === 8) {
-                //テキストボックスに入力した文字を消せません
-                e.preventDefault();
-                return false;
+            if(!isBackButtonOn){
+                if(e.key === "Backspace" || e.keyCode === 8) {
+                    //テキストボックスに入力した文字を消せません
+                    e.preventDefault();
+                    return false;
+                }
             }
             if (e.isComposing || e.key === 'Process' || e.keyCode === 229) {
                 // IME入力中
@@ -117,6 +313,32 @@
                 }
             }
         });
+
+        function downloadHistory() {
+            const currentDate = new Date();
+            const formattedDate = `${(currentDate.getFullYear() % 100).toString().padStart(2, '0')}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
+            const historyText = history.reverse().join('\n\n'); // 履歴を改行で結合
+            const blob = new Blob([historyText], { type: 'text/plain' });
+            const fileName = `history-${formattedDate}.txt`;
+        
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            history.reverse();
+        }
+
+        function sendDiamond(){
+            // メッセージをDiscordへ送信
+            if(isPushButtonOn){
+                sendToDiscord("――――――――");
+            }
+            // 送信履歴に追加
+            addToHistory("　　　　◆");
+        }
     </script>
 </body>
 </html>
