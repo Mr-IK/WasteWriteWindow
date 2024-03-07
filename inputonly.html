@@ -2,27 +2,15 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>テキストインプッター v2.1</title>
+    <title>テキストインプッター v2.2</title>
     <style>
         body {
+            background-color: #f1f5f8;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-        }
-
-        /* ダークモードの場合のスタイル */
-        @media (prefers-color-scheme: dark) {
-            body {
-                background-color: black;
-                color: white;
-            }
-
-            textarea {
-                background-color: #333;
-                color: white;
-            }
         }
 
         @keyframes fade-in {
@@ -46,7 +34,7 @@
         }
 
         #errorMessage{
-            color: black;
+            color: #f1f5f8;
             position: absolute;
             bottom: -20%; 
         }
@@ -59,7 +47,7 @@
         textarea {
             font-size: 20px;
             letter-spacing: 2.5px; /* 文字間隔を調整 */
-            width: 150%; /* 幅を150%に設定 */
+            width: clamp(330px, 26vw, 550px);; /* 幅を28%に設定 */
             margin-bottom: 10px; /* マージンを追加 */	
         }	
 
@@ -69,20 +57,29 @@
             flex-direction: column-reverse; /* 最新の履歴が下に来るように */	
             max-height: 300px; /* 最大の高さを設定 */	
             overflow-y: auto; /* 高さを超えた場合はスクロールバーを表示 */	
-            scrollbar-width: thin;
-            width: 150%; /* 入力フィールドと同じ幅に設定 */
             position: absolute; /* 絶対配置 */
             bottom: 75%; /* 入力フィールドの上に表示 */
             z-index: 1; /* 他の要素より手前に表示 */
             margin-bottom: 10px; /* マージンを追加 */
+            scrollbar-width: 0.2vw; /* Chrome最新版で下記コードが機能しなくなったので追加 */
+            scrollbar-gutter: stable both-edges;
+            scrollbar-color: #555555 #00000000;
         }
 
         #history::-webkit-scrollbar {
-            width: 0; /* WebKit（ChromeやSafari）用のスクロールバーを非表示にします */
+            width: 0.2vw; 
+        }
+
+        #history::-webkit-scrollbar-thumb {
+            background-color: #555555;
+        }
+
+        #history::-webkit-scrollbar-track {
+            display: none;
         }
 
         .history-item {
-            background-color: #333333e6; /* 透明度を設定 */
+            background-color: #cccccce6;
             padding: 5px;	
             margin-bottom: 6.5px;	
             border-radius: 5px;
@@ -96,9 +93,9 @@
         }
 
         button {
-            background-color: rgb(181, 181, 181);
+            background-color: rgb(74, 74, 74);
+            text-shadow: 0 0 0 white;
             color: transparent; 
-            text-shadow: 0 0 0 black;
             padding: 5px 10px 5px 10px;
             cursor: pointer;
             border: none;
@@ -112,16 +109,60 @@
         }
 
         #message-container.off #toggleLog, #togglePush.off, #toggleBack.off{
-            background-color: #333;
+            background-color: #ccc;
+            text-shadow: 0 0 0 black;
             color: transparent; 
-            text-shadow: 0 0 0 white;
         }
 
         #message-container.off #history{
             display: none;
         }
         #message-container.on h1{
-            color: black;
+            color: #f1f5f8;;
+        }
+
+
+        /* ダークモードの場合のスタイル */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: black;
+                color: white;
+            }
+
+            textarea {
+                background-color: #333;
+                color: white;
+            }
+
+            #message-container.on h1{
+                color: black;
+            }
+
+            #errorMessage{
+                color: black;
+            }
+
+            .history-item {
+                background-color: #333333e6; /* 透明度を設定 */
+            }
+
+            button {
+                background-color: rgb(181, 181, 181);
+                text-shadow: 0 0 0 black;
+            }
+
+            #message-container.off #toggleLog, #togglePush.off, #toggleBack.off{
+                background-color: #333;
+                text-shadow: 0 0 0 white;
+            }
+
+            #history{
+                scrollbar-color: #aaaaaa #ffffff00;
+            }
+
+            #history::-webkit-scrollbar-thumb {
+                background-color: #aaaaaa;
+            }
         }
 
     </style>
@@ -132,7 +173,7 @@
         <div id="history"></div>
         <textarea id="inputText" rows="4" placeholder="メッセージを入力してください"></textarea>
         <div class="menubar">
-            <button title="Discord送信切替" id="togglePush" onclick="togglePush()" class="on">💬</button>
+            <button title="Webhook送信切替" id="togglePush" onclick="togglePush()" class="on">💬</button>
             <button title="ログ表示切替" id="toggleLog" onclick="toggleLog()">🗒️</button>
             <button title="ログ削除" id="dust" onclick="showConfirmationDialog()">🗑️</button>
             <button title="ログダウンロード" id="download" onclick="downloadHistory()">📩</button>
@@ -144,8 +185,8 @@
     </div>
 
     <script>
-        // Discord WebhookのURLを指定
-        const discordWebhookURL = 'WebhookURL';
+        // WebhookのURLを指定
+        const webhookURL = 'x';
 
         // 送信履歴を格納する配列
         const history = [];
@@ -228,9 +269,9 @@
             clearError();
 
             if (message) {
-                // メッセージをDiscordへ送信
-                if(isPushButtonOn){
-                    sendToDiscord(message);
+                // メッセージをWebhookへ送信
+                if(isPushButtonOn && webhookURL != 'x'){
+                    sendToWeb(message);
                 }
                 // 送信履歴に追加
                 addToHistory(message);
@@ -239,10 +280,10 @@
             }
         }
 
-        function sendToDiscord(message) {
+        function sendToWeb(message) {
             // ここにWebhook送信のJavaScriptコードを記述
-            // 例: fetchメソッドを使用してDiscord Webhookにメッセージを送信
-            fetch(discordWebhookURL, {
+            // 例: fetchメソッドを使用してWebhookにメッセージを送信
+            fetch(webhookURL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -332,9 +373,9 @@
         }
 
         function sendDiamond(){
-            // メッセージをDiscordへ送信
+            // メッセージをWebへ送信
             if(isPushButtonOn){
-                sendToDiscord("――――――――");
+                sendToWeb("――――――――");
             }
             // 送信履歴に追加
             addToHistory("　　　　◆");
