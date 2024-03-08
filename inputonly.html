@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>テキストインプッター v2.2</title>
+    <title>テキストインプッター v2.3</title>
     <style>
         body {
             background-color: #f1f5f8;
@@ -61,7 +61,7 @@
             bottom: 75%; /* 入力フィールドの上に表示 */
             z-index: 1; /* 他の要素より手前に表示 */
             margin-bottom: 10px; /* マージンを追加 */
-            scrollbar-width: 0.2vw; /* Chrome最新版で下記コードが機能しなくなったので追加 */
+            scrollbar-width: 0.2vw; /* Chrome最新版でwebkitが機能しなくなったので追加 */
             scrollbar-gutter: stable both-edges;
             scrollbar-color: #555555 #00000000;
         }
@@ -79,7 +79,7 @@
         }
 
         .history-item {
-            background-color: #cccccce6;
+            background-color: #ffffffe6;
             padding: 5px;	
             margin-bottom: 6.5px;	
             border-radius: 5px;
